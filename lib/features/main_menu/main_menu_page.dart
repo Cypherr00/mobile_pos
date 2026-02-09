@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../scan/scan_page.dart';
 import '../products/add_product_page.dart';
 import '../cart/cart_page.dart';
+import '../products/manage_products_page.dart';
 
 class MainMenuPage extends StatelessWidget {
   const MainMenuPage({super.key});
@@ -53,6 +54,15 @@ class MainMenuPage extends StatelessWidget {
 
               },
               child: const Text('Cart'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ManageProductsPage()),
+                );
+
+              },
+                child: const Text('Products'),
             ),
           ],
         ),
