@@ -9,7 +9,8 @@ import 'edit_product_page.dart';
 import 'add_product_page.dart';
 
 class ManageProductsPage extends ConsumerWidget {
-  const ManageProductsPage({super.key});
+  final bool isAdminAuthorized;
+  const ManageProductsPage({super.key, this.isAdminAuthorized = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -78,7 +79,11 @@ class ManageProductsPage extends ConsumerWidget {
                     ElevatedButton.icon(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AddProductPage()),
+                          MaterialPageRoute(
+                            builder: (_) => AddProductPage(
+                              isAdminAuthorized: isAdminAuthorized,
+                            ),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.add, size: 20),
@@ -171,7 +176,10 @@ class ManageProductsPage extends ConsumerWidget {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => EditProductPage(product: product),
+                        builder: (_) => EditProductPage(
+                          product: product,
+                          isAdminAuthorized: isAdminAuthorized,
+                        ),
                       ),
                     );
                   },
@@ -184,7 +192,11 @@ class ManageProductsPage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AddProductPage()),
+            MaterialPageRoute(
+              builder: (_) => AddProductPage(
+                isAdminAuthorized: isAdminAuthorized,
+              ),
+            ),
           );
         },
         backgroundColor: AppColors.primary,

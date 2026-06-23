@@ -214,7 +214,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                               ),
                               const SizedBox(height: 12),
                               const Text(
-                                'MOBILE QR POS',
+                                'VENDR',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,

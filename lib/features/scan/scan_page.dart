@@ -10,6 +10,8 @@ import '../../data/models/cart_item_model.dart';
 import '../../core/theme/app_colors.dart';
 import '../products/add_product_page.dart';
 import '../cart/cart_page.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/widgets/admin_auth_dialog.dart';
 
 class ScanPage extends ConsumerStatefulWidget {
   const ScanPage({super.key});
@@ -103,11 +105,22 @@ class _ScanPageState extends ConsumerState<ScanPage> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AddProductPage()),
-                        );
+                        final activeCashier = ref.read(authProvider).activeCashier;
+                        bool authorized = activeCashier?.isAdmin ?? false;
+                        if (!authorized) {
+                          authorized = await AdminAuthorizationDialog.show(
+                            context,
+                            message: 'Admin credentials are required to register products.',
+                          );
+                        }
+                        if (!mounted) return;
+                        if (authorized) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AddProductPage(isAdminAuthorized: true)),
+                          );
+                        }
                         _isProcessing = false;
                       },
                       style: ElevatedButton.styleFrom(

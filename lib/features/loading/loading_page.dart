@@ -1,35 +1,52 @@
 // features/loading/loading_page.dart
-// App startup loading screen
+// App startup loading screen checking auth state
 
 import 'package:flutter/material.dart';
-import '../main_menu/main_menu_page.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/cashier_selection_page.dart';
+import '../auth/pin_entry_page.dart';
+import '../../core/theme/app_colors.dart';
 
-class LoadingPage extends StatefulWidget {
+class LoadingPage extends ConsumerStatefulWidget {
   const LoadingPage({super.key});
 
   @override
-  State<LoadingPage> createState() => _LoadingPageState();
+  ConsumerState<LoadingPage> createState() => _LoadingPageState();
 }
 
-class _LoadingPageState extends State<LoadingPage> {
+class _LoadingPageState extends ConsumerState<LoadingPage> {
   @override
   void initState() {
     super.initState();
+    _checkAuthAndNavigate();
+  }
 
-    // Simulate short startup delay for UX consistency
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
+  Future<void> _checkAuthAndNavigate() async {
+    // Wait a brief moment for the AuthNotifier initialization from SharedPreferences
+    await Future.delayed(const Duration(milliseconds: 1000));
+    
+    if (!mounted) return;
+    
+    final authState = ref.read(authProvider);
+
+    if (authState.selectedCashierId == null) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const MainMenuPage()),
+        MaterialPageRoute(builder: (_) => const CashierSelectionPage()),
       );
-    });
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const PinEntryPage()),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(color: AppColors.primary),
       ),
     );
   }

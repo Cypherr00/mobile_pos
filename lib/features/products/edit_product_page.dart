@@ -6,11 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/product_model.dart';
 import '../../providers/product_providers.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/widgets/admin_auth_dialog.dart';
 
 class EditProductPage extends ConsumerStatefulWidget {
   final Product product;
+  final bool isAdminAuthorized;
 
-  const EditProductPage({super.key, required this.product});
+  const EditProductPage({
+    super.key,
+    required this.product,
+    this.isAdminAuthorized = false,
+  });
 
   @override
   ConsumerState<EditProductPage> createState() => _EditProductPageState();
@@ -38,6 +45,19 @@ class _EditProductPageState extends ConsumerState<EditProductPage> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check authorization first!
+    final activeCashier = ref.read(authProvider).activeCashier;
+    bool isAuthorized = widget.isAdminAuthorized || (activeCashier?.isAdmin ?? false);
+
+    if (!isAuthorized) {
+      isAuthorized = await AdminAuthorizationDialog.show(
+        context,
+        message: 'Admin credentials are required to edit catalogue products.',
+      );
+    }
+
+    if (!isAuthorized) return;
+
     final updated = Product(
       id: widget.product.id,
       name: _nameController.text.trim(),
@@ -64,6 +84,20 @@ class _EditProductPageState extends ConsumerState<EditProductPage> {
   }
 
   Future<void> _delete() async {
+    // Check authorization first!
+    final activeCashier = ref.read(authProvider).activeCashier;
+    bool isAuthorized = widget.isAdminAuthorized || (activeCashier?.isAdmin ?? false);
+
+    if (!isAuthorized) {
+      isAuthorized = await AdminAuthorizationDialog.show(
+        context,
+        message: 'Admin credentials are required to delete products from the catalogue.',
+      );
+    }
+
+    if (!isAuthorized) return;
+    if (!mounted) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

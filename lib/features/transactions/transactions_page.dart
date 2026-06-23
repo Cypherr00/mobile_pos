@@ -301,7 +301,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                       ),
                                       const SizedBox(height: 8),
                                       const Text(
-                                        'MOBILE QR POS',
+                                        'VENDR',
                                         style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w900,

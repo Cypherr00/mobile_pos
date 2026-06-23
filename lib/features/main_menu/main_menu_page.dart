@@ -2,30 +2,57 @@
 // Landing page with primary actions and dashboard layout
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../scan/scan_page.dart';
 import '../products/add_product_page.dart';
 import '../cart/cart_page.dart';
 import '../products/manage_products_page.dart';
 import '../transactions/transactions_page.dart';
 import '../analytics/analytics_page.dart';
+import '../loading/loading_page.dart';
+import '../auth/widgets/admin_auth_dialog.dart';
 
-class MainMenuPage extends StatelessWidget {
+class MainMenuPage extends ConsumerWidget {
   const MainMenuPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final String cashierName = authState.activeCashier?.name ?? 'Cashier Station';
+    final String cashierRole = authState.activeCashier?.role ?? 'cashier';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text(
-          'Mobile POS',
+          'Vendr',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: AppColors.textDark,
         surfaceTintColor: Colors.transparent,
+        actions: [
+          Tooltip(
+            message: authState.isOffline ? 'Offline Mode (Local database active)' : 'Online Mode (Supabase connected)',
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (authState.isOffline ? AppColors.danger : AppColors.success).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                authState.isOffline ? Icons.cloud_off_rounded : Icons.cloud_done_rounded,
+                color: authState.isOffline ? AppColors.danger : AppColors.success,
+                size: 20,
+              ),
+            ),
+          ),
+        ],
       ),
       drawer: Drawer(
         backgroundColor: Colors.white,
@@ -37,21 +64,36 @@ class MainMenuPage extends StatelessWidget {
               ),
               child: Align(
                 alignment: Alignment.bottomLeft,
-                child: Row(
-                  children: const [
-                    Icon(
-                      Icons.qr_code_scanner_rounded,
-                      color: Colors.white,
-                      size: 32,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(
+                          Icons.storefront_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'Vendr POS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(height: 12),
                     Text(
-                      'POS Terminal',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
+                      '$cashierName (${cashierRole.toUpperCase()})',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -81,11 +123,23 @@ class MainMenuPage extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
               title: const Text('Manage Products', style: TextStyle(fontWeight: FontWeight.bold)),
-              onTap: () {
+              trailing: cashierRole != 'admin'
+                  ? const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textLight)
+                  : null,
+              onTap: () async {
                 Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ManageProductsPage()),
-                );
+                bool authorized = cashierRole == 'admin';
+                if (!authorized) {
+                  authorized = await AdminAuthorizationDialog.show(
+                    context,
+                    message: 'Admin credentials are required to manage products.',
+                  );
+                }
+                if (authorized && context.mounted) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ManageProductsPage(isAdminAuthorized: true)),
+                  );
+                }
               },
             ),
             ListTile(
@@ -101,10 +155,87 @@ class MainMenuPage extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.bar_chart_rounded, color: AppColors.primary),
               title: const Text('Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
-              onTap: () {
+              trailing: cashierRole != 'admin'
+                  ? const Icon(Icons.lock_outline_rounded, size: 18, color: AppColors.textLight)
+                  : null,
+              onTap: () async {
                 Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AnalyticsPage()),
+                bool authorized = cashierRole == 'admin';
+                if (!authorized) {
+                  authorized = await AdminAuthorizationDialog.show(
+                    context,
+                    message: 'Admin credentials are required to view performance analytics.',
+                  );
+                }
+                if (authorized && context.mounted) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AnalyticsPage()),
+                  );
+                }
+              },
+            ),
+            const Divider(color: AppColors.border),
+
+            // Sync Database Option (only enabled when online)
+            if (!authState.isOffline)
+              ListTile(
+                leading: ref.watch(syncProvider).isSyncing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : const Icon(Icons.sync_rounded, color: AppColors.primary),
+                title: const Text('Sync Database', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () async {
+                  if (ref.read(syncProvider).isSyncing) return;
+                  
+                  await ref.read(syncProvider.notifier).sync();
+                  
+                  if (context.mounted) {
+                    final error = ref.read(syncProvider).errorMessage;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(error ?? 'Sync completed successfully!'),
+                        backgroundColor: error != null ? AppColors.danger : AppColors.success,
+                      ),
+                    );
+                    Navigator.of(context).pop(); // Close drawer
+                  }
+                },
+              ),
+
+            // Switch Cashier Profile Option (only enabled when online)
+            if (!authState.isOffline)
+              ListTile(
+                leading: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+                title: const Text('Switch Cashier', style: TextStyle(fontWeight: FontWeight.bold)),
+                onTap: () async {
+                  final success = await ref.read(authProvider.notifier).switchCashier();
+                  if (success && context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoadingPage()),
+                      (route) => false,
+                    );
+                  }
+                },
+              ),
+              
+            // Logout Option
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
+              title: const Text(
+                'Logout', 
+                style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.danger)
+              ),
+              onTap: () {
+                ref.read(authProvider.notifier).logout();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoadingPage()),
+                  (route) => false,
                 );
               },
             ),
@@ -112,7 +243,7 @@ class MainMenuPage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Text(
-                'v1.0.0 (Offline Mode)',
+                authState.isOffline ? 'v1.0.0 (Offline Mode)' : 'v1.0.0 (Cloud Synced)',
                 style: TextStyle(color: AppColors.textLight, fontSize: 12),
               ),
             ),
@@ -131,8 +262,8 @@ class MainMenuPage extends StatelessWidget {
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'Welcome Back,',
                         style: TextStyle(
                           fontSize: 14,
@@ -140,10 +271,10 @@ class MainMenuPage extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'Cashier Station',
-                        style: TextStyle(
+                        cashierName,
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           color: AppColors.textDark,
@@ -218,9 +349,23 @@ class MainMenuPage extends StatelessWidget {
                     subtitle: 'Create Manual Item',
                     icon: Icons.add_circle_outline_rounded,
                     color: AppColors.primary,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AddProductPage()),
-                    ),
+                    isLocked: cashierRole != 'admin',
+                    onTap: () async {
+                      bool authorized = cashierRole == 'admin';
+                      if (!authorized) {
+                        authorized = await AdminAuthorizationDialog.show(
+                          context,
+                          message: 'Admin credentials are required to add products.',
+                        );
+                      }
+                      if (authorized && context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AddProductPage(isAdminAuthorized: true),
+                          ),
+                        );
+                      }
+                    },
                   ),
                   _buildMenuCard(
                     context,
@@ -228,16 +373,30 @@ class MainMenuPage extends StatelessWidget {
                     subtitle: 'Product Catalogue',
                     icon: Icons.inventory_2_rounded,
                     color: AppColors.primary,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ManageProductsPage()),
-                    ),
+                    isLocked: cashierRole != 'admin',
+                    onTap: () async {
+                      bool authorized = cashierRole == 'admin';
+                      if (!authorized) {
+                        authorized = await AdminAuthorizationDialog.show(
+                          context,
+                          message: 'Admin credentials are required to manage products.',
+                        );
+                      }
+                      if (authorized && context.mounted) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ManageProductsPage(isAdminAuthorized: true),
+                          ),
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
               // Full-Width Analytics Shortcut Card
-              _buildAnalyticsCard(context),
+              _buildAnalyticsCard(context, isLocked: cashierRole != 'admin'),
             ],
           ),
         ),
@@ -337,6 +496,7 @@ class MainMenuPage extends StatelessWidget {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    bool isLocked = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -362,17 +522,28 @@ class MainMenuPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 22,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 22,
+                      ),
+                    ),
+                    if (isLocked)
+                      const Icon(
+                        Icons.lock_outline_rounded,
+                        color: AppColors.textLight,
+                        size: 16,
+                      ),
+                  ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +576,7 @@ class MainMenuPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAnalyticsCard(BuildContext context) {
+  Widget _buildAnalyticsCard(BuildContext context, {required bool isLocked}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -423,10 +594,19 @@ class MainMenuPage extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AnalyticsPage()),
-            );
+          onTap: () async {
+            bool authorized = !isLocked;
+            if (!authorized) {
+              authorized = await AdminAuthorizationDialog.show(
+                context,
+                message: 'Admin credentials are required to view performance analytics.',
+              );
+            }
+            if (authorized && context.mounted) {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AnalyticsPage()),
+              );
+            }
           },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
@@ -469,9 +649,10 @@ class MainMenuPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
+                Icon(
+                  isLocked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded,
                   color: AppColors.textLight,
+                  size: isLocked ? 18 : 24,
                 ),
               ],
             ),

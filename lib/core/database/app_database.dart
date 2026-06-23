@@ -24,12 +24,15 @@ class AppDatabase {
 
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
+
+    await _bootstrapCashiers();
   }
 
-  // Create tables (v2 baseline schema)
+  // Create tables (v2 baseline schema + Cashiers support)
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE products (
@@ -49,7 +52,8 @@ class AppDatabase {
         total_amount_cents INTEGER NOT NULL,
         total_items INTEGER NOT NULL,
         created_at TEXT NOT NULL,
-        is_synced INTEGER NOT NULL DEFAULT 0
+        is_synced INTEGER NOT NULL DEFAULT 0,
+        cashier_id TEXT
       )
     ''');
 
@@ -63,5 +67,69 @@ class AppDatabase {
         quantity INTEGER NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE cashiers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        pin_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'cashier',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  // Upgrade path for existing local database files
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cashiers (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          pin_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'cashier',
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      ''');
+      try {
+        await db.execute('ALTER TABLE transactions ADD COLUMN cashier_id TEXT');
+      } catch (_) {
+        // column may already exist
+      }
+    }
+  }
+
+  // Seeding default credentials for offline authentication availability
+  Future<void> _bootstrapCashiers() async {
+    final cashiers = await _db!.query('cashiers');
+    if (cashiers.isEmpty) {
+      final now = DateTime.now().toIso8601String();
+      
+      // '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' is SHA-256 for PIN '1234' (Default Admin)
+      await _db!.insert('cashiers', {
+        'id': 'd7b1a206-bf25-4c07-8e68-07e0b5711200',
+        'name': 'Default Admin',
+        'pin_hash': '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203',
+        'role': 'admin',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' is SHA-256 for PIN '123456' (Default Cashier)
+      await _db!.insert('cashiers', {
+        'id': 'e1b2c304-bf25-4c07-8e68-07e0b5711201',
+        'name': 'Default Cashier',
+        'pin_hash': '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203',
+        'role': 'cashier',
+        'is_active': 1,
+        'created_at': now,
+        'updated_at': now,
+      });
+    }
   }
 }

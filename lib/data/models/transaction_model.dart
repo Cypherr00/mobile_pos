@@ -6,12 +6,14 @@ class PosTransaction {
   final int totalAmountCents;
   final int totalItems;
   final String createdAt;
+  final String? cashierId;
 
   PosTransaction({
     required this.id,
     required this.totalAmountCents,
     required this.totalItems,
     required this.createdAt,
+    this.cashierId,
   });
 
   Map<String, dynamic> toMap() {
@@ -21,6 +23,7 @@ class PosTransaction {
       'total_items': totalItems,
       'created_at': createdAt,
       'is_synced': 0,
+      'cashier_id': cashierId,
     };
   }
 }

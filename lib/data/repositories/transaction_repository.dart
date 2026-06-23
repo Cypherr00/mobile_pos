@@ -12,7 +12,7 @@ class TransactionRepository {
   Database get _db => AppDatabase.instance.db;
   final _uuid = const Uuid();
 
-  Future<void> createTransaction(List<CartItem> cart) async {
+  Future<void> createTransaction(List<CartItem> cart, {String? cashierId}) async {
     if (cart.isEmpty) return;
 
     final transactionId = _uuid.v4();
@@ -26,6 +26,7 @@ class TransactionRepository {
       totalAmountCents: totalAmount,
       totalItems: totalItems,
       createdAt: now,
+      cashierId: cashierId,
     );
 
     await _db.transaction((txn) async {

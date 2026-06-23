@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/database/app_database.dart';
+import 'core/network/supabase_service.dart';
+import 'core/sync/sync_engine.dart';
 import 'features/loading/loading_page.dart';
 
 void main() async {
@@ -22,6 +24,14 @@ void main() async {
   // Initialize local SQLite database (offline-first)
   await AppDatabase.instance.init();
 
+  // Initialize Supabase (Centralized database)
+  await SupabaseService.instance.init();
+
+  // Sync in background if Supabase is connected
+  if (SupabaseService.instance.isInitialized) {
+    SyncEngine.instance.syncAll();
+  }
+
   // Riverpod root scope
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -32,7 +42,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mobile QR POS',
+      title: 'Vendr',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true),
       home: const LoadingPage(),
