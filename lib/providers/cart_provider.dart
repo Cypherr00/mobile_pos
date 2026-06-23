@@ -15,7 +15,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
       state = [
         for (int i = 0; i < state.length; i++)
           if (i == index)
-            existing.copyWith(quantity: existing.quantity + 1)
+            existing.copyWith(quantity: existing.quantity + item.quantity)
           else
             state[i]
       ];

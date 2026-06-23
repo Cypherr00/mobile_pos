@@ -1,6 +1,7 @@
 // data/repositories/transaction_repository.dart
 // Atomic checkout persistence
 
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/database/app_database.dart';
 import '../models/transaction_model.dart';
@@ -8,7 +9,7 @@ import '../models/transaction_item_model.dart';
 import '../models/cart_item_model.dart';
 
 class TransactionRepository {
-  final _db = AppDatabase.instance.db;
+  Database get _db => AppDatabase.instance.db;
   final _uuid = const Uuid();
 
   Future<void> createTransaction(List<CartItem> cart) async {

@@ -18,6 +18,7 @@ class _LoadingPageState extends State<LoadingPage> {
 
     // Simulate short startup delay for UX consistency
     Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MainMenuPage()),
       );

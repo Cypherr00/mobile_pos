@@ -4,7 +4,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_pos/features/scan/scan_page.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/product_providers.dart';
@@ -26,6 +25,16 @@ class _ScanPageState extends ConsumerState<ScanPage> {
   String? _productName;
   int? _priceCents;
   int _quantity = 1;
+
+  final MobileScannerController _controller = MobileScannerController(
+    autoStart: true,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _clearPreview() {
     setState(() {
@@ -107,7 +116,7 @@ class _ScanPageState extends ConsumerState<ScanPage> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        cart.length.toString(),
+                        cart.fold<int>(0, (sum, item) => sum + item.quantity).toString(),
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -127,6 +136,8 @@ class _ScanPageState extends ConsumerState<ScanPage> {
           Expanded(
             flex: 4,
             child: MobileScanner(
+              controller: _controller,
+              fit: BoxFit.cover,
               onDetect: (capture) {
                 final code = capture.barcodes.first.rawValue;
                 if (code == null) return;

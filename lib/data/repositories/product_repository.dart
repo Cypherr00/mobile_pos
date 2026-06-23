@@ -7,7 +7,7 @@ import '../../core/database/app_database.dart';
 import '../models/product_model.dart';
 
 class ProductRepository {
-  final _db = AppDatabase.instance.db;
+  Database get _db => AppDatabase.instance.db;
 
   Future<Product?> getById(String id) async {
     final result = await _db.query(

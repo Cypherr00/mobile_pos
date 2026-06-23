@@ -4,7 +4,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/product_model.dart';
 import '../data/repositories/product_repository.dart';
-import 'package:sqflite/sqflite.dart';
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   return ProductRepository();

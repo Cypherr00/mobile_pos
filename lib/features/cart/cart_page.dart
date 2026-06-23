@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/cart_provider.dart';
+import '../checkout/checkout_page.dart';
 
 class CartPage extends ConsumerWidget {
   const CartPage({super.key});
@@ -50,7 +51,13 @@ class CartPage extends ConsumerWidget {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
         child: ElevatedButton(
-          onPressed: () {}, // checkout wired in Phase 4
+          onPressed: cart.isEmpty
+              ? null
+              : () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CheckoutPage()),
+                  );
+                },
           child: const Text('Proceed to Checkout'),
         ),
       ),

@@ -35,8 +35,8 @@ class CheckoutPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Items: ${cartNotifier.totalItems}'),
-                Text('Total: ₱ ${(cartNotifier.totalAmountCents / 100).toStringAsFixed(2)}'),
+                Text('Items: ${cart.fold<int>(0, (sum, item) => sum + item.quantity)}'),
+                Text('Total: ₱ ${(cart.fold<int>(0, (sum, item) => sum + (item.priceCents * item.quantity)) / 100).toStringAsFixed(2)}'),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () async {
