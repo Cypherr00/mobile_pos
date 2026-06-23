@@ -12,7 +12,6 @@ class CheckoutPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider);
-    final cartNotifier = ref.read(cartProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
