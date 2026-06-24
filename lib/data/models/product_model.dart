@@ -6,12 +6,14 @@ class Product {
   final String name;
   final int priceCents; // INTEGER only
   final bool isDeleted;
+  final int version;
 
   Product({
     required this.id,
     required this.name,
     required this.priceCents,
     required this.isDeleted,
+    this.version = 1,
   });
 
   factory Product.fromMap(Map<String, dynamic> map) {
@@ -20,6 +22,7 @@ class Product {
       name: map['name'],
       priceCents: map['price_cents'],
       isDeleted: map['is_deleted'] == 1,
+      version: map['version'] ?? 1,
     );
   }
 
@@ -30,7 +33,7 @@ class Product {
       'name': name,
       'price_cents': priceCents,
       'created_at': now,
-      'updated_at': now,
+      'version': version,
       'is_deleted': isDeleted ? 1 : 0,
       'is_synced': 0,
     };

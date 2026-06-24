@@ -1,6 +1,7 @@
 // providers/auth_provider.dart
 
 import 'dart:async';
+import 'package:mobile_pos/core/network/supabase_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -105,10 +106,14 @@ class AuthNotifier extends Notifier<AuthState> {
     if (cashierId == null) return false;
 
     final repo = ref.read(authRepositoryProvider);
+    
+    // OFFLINE & ONLINE: Use local SQLite hash
+    // The local cashiers table is always synced with Supabase in the background,
+    // so we can rely strictly on the cashiers table.
     final isValid = await repo.verifyPin(cashierId, pin);
     if (!isValid) return false;
 
-    // Load cashier details
+    // Load cashier details to set active session
     final cashiers = await repo.getLocalCashiers();
     final cashier = cashiers.firstWhere((c) => c.id == cashierId);
 

@@ -3,6 +3,7 @@
 class Cashier {
   final String id;
   final String name;
+  final String email;
   final String pinHash;
   final String role;
   final bool isActive;
@@ -12,6 +13,7 @@ class Cashier {
   Cashier({
     required this.id,
     required this.name,
+    required this.email,
     required this.pinHash,
     required this.role,
     required this.isActive,
@@ -23,6 +25,7 @@ class Cashier {
     return Cashier(
       id: map['id'] as String,
       name: map['name'] as String,
+      email: map['email'] as String? ?? '',
       pinHash: map['pin_hash'] as String,
       role: map['role'] as String,
       isActive: (map['is_active'] is int)
@@ -37,6 +40,7 @@ class Cashier {
     return {
       'id': id,
       'name': name,
+      'email': email,
       'pin_hash': pinHash,
       'role': role,
       'is_active': isActive ? 1 : 0,

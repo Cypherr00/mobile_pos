@@ -24,7 +24,7 @@ class AppDatabase {
 
     _db = await openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -40,7 +40,7 @@ class AppDatabase {
         name TEXT NOT NULL,
         price_cents INTEGER NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
+        version INTEGER NOT NULL DEFAULT 1,
         is_deleted INTEGER NOT NULL DEFAULT 0,
         is_synced INTEGER NOT NULL DEFAULT 0
       )
@@ -72,6 +72,7 @@ class AppDatabase {
       CREATE TABLE cashiers (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
+        email TEXT NOT NULL,
         pin_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'cashier',
         is_active INTEGER NOT NULL DEFAULT 1,
@@ -101,6 +102,16 @@ class AppDatabase {
         // column may already exist
       }
     }
+    if (oldVersion < 3) {
+      try {
+        await db.execute('ALTER TABLE products ADD COLUMN version INTEGER NOT NULL DEFAULT 1');
+      } catch (_) {}
+    }
+    if (oldVersion < 4) {
+      try {
+        await db.execute('ALTER TABLE cashiers ADD COLUMN email TEXT NOT NULL DEFAULT ""');
+      } catch (_) {}
+    }
   }
 
   // Seeding default credentials for offline authentication availability
@@ -109,23 +120,13 @@ class AppDatabase {
     if (cashiers.isEmpty) {
       final now = DateTime.now().toIso8601String();
       
-      // '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' is SHA-256 for PIN '1234' (Default Admin)
+      // Daven Admin
       await _db!.insert('cashiers', {
         'id': 'd7b1a206-bf25-4c07-8e68-07e0b5711200',
-        'name': 'Default Admin',
-        'pin_hash': '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203',
+        'name': 'Daven Lozada',
+        'email': 'davenjerthlozada@gmail.com',
+        'pin_hash': '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203', // 1234
         'role': 'admin',
-        'is_active': 1,
-        'created_at': now,
-        'updated_at': now,
-      });
-
-      // '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' is SHA-256 for PIN '123456' (Default Cashier)
-      await _db!.insert('cashiers', {
-        'id': 'e1b2c304-bf25-4c07-8e68-07e0b5711201',
-        'name': 'Default Cashier',
-        'pin_hash': '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203',
-        'role': 'cashier',
         'is_active': 1,
         'created_at': now,
         'updated_at': now,

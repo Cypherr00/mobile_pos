@@ -1,6 +1,4 @@
-// features/loading/loading_page.dart
-// App startup loading screen checking auth state
-
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
@@ -16,15 +14,23 @@ class LoadingPage extends ConsumerStatefulWidget {
 }
 
 class _LoadingPageState extends ConsumerState<LoadingPage> {
+  final List<String> _tips = [
+    "Connect to the database daily to ensure updated prices.",
+    "Sync before starting your shift to get the latest product catalog.",
+    "Offline sales are saved locally and synced when you reconnect.",
+  ];
+  late final String _currentTip;
+
   @override
   void initState() {
     super.initState();
+    _currentTip = _tips[Random().nextInt(_tips.length)];
     _checkAuthAndNavigate();
   }
 
   Future<void> _checkAuthAndNavigate() async {
     // Wait a brief moment for the AuthNotifier initialization from SharedPreferences
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 1500));
     
     if (!mounted) return;
     
@@ -43,10 +49,46 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'lib/assets/VendrLogo.png',
+                    width: 120,
+                  ),
+                  const SizedBox(height: 48),
+                  const CircularProgressIndicator(color: AppColors.primary),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 40,
+              left: 32,
+              right: 32,
+              child: Column(
+                children: [
+                  const Icon(Icons.lightbulb_outline_rounded, color: AppColors.textMuted, size: 24),
+                  const SizedBox(height: 12),
+                  Text(
+                    _currentTip,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textMuted,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -32,19 +32,28 @@ class ProductRepository {
   }
 
   Future<void> upsert(Product product) async {
+    final existing = await getById(product.id);
+    final versionToSave = existing != null ? existing.version + 1 : product.version;
+
+    final map = product.toMap();
+    map['version'] = versionToSave;
+
     await _db.insert(
       'products',
-      product.toMap(),
+      map,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
   Future<void> softDelete(String id) async {
+    final existing = await getById(id);
+    if (existing == null) return;
+
     await _db.update(
       'products',
       {
         'is_deleted': 1,
-        'updated_at': DateTime.now().toIso8601String(),
+        'version': existing.version + 1,
         'is_synced': 0,
       },
       where: 'id = ?',

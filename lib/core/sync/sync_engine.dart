@@ -33,8 +33,7 @@ class SyncEngine {
   Future<void> syncAll() async {
     final supabase = SupabaseService.instance;
     if (!supabase.isInitialized) {
-      debugPrint('SyncEngine: Supabase connection not configured. Sync skipped.');
-      return;
+      throw Exception('Supabase connection not configured. Sync skipped.');
     }
 
     debugPrint('SyncEngine: Commencing synchronisation run...');
@@ -45,6 +44,7 @@ class SyncEngine {
       debugPrint('SyncEngine: Sync completed successfully.');
     } catch (e, stack) {
       debugPrint('SyncEngine: Error during sync processing: $e\n$stack');
+      rethrow; // Ensure the UI catches this and shows the error!
     }
   }
 
@@ -65,6 +65,7 @@ class SyncEngine {
       for (final item in data) {
         final id = item['id'] as String;
         final name = item['name'] as String;
+        final email = item['email'] as String? ?? '';
         final pinHash = item['pin_hash'] as String;
         final role = item['role'] as String;
         final isActive = (item['is_active'] as bool) ? 1 : 0;
@@ -76,6 +77,7 @@ class SyncEngine {
           {
             'id': id,
             'name': name,
+            'email': email,
             'pin_hash': pinHash,
             'role': role,
             'is_active': isActive,
@@ -102,15 +104,21 @@ class SyncEngine {
         final name = row['name'] as String;
         final priceCents = row['price_cents'] as int;
         final isDeleted = row['is_deleted'] == 1;
-        final updatedAt = row['updated_at'] as String;
+        final version = row['version'] as int;
 
-        await client.from('products').upsert({
-          'id': id,
-          'name': name,
-          'price_cents': priceCents,
-          'is_deleted': isDeleted,
-          'updated_at': updatedAt,
-        });
+        // Fetch cloud version to prevent overwriting a newer cloud version
+        final cloudRes = await client.from('products').select('version').eq('id', id).maybeSingle();
+        final cloudVersion = cloudRes != null ? (cloudRes['version'] as int? ?? 0) : 0;
+
+        if (version >= cloudVersion) {
+          await client.from('products').upsert({
+            'id': id,
+            'name': name,
+            'price_cents': priceCents,
+            'is_deleted': isDeleted,
+            'version': version,
+          });
+        }
       }
       
       // Update local catalog sync flag
@@ -118,7 +126,7 @@ class SyncEngine {
       debugPrint('SyncEngine: Pushed ${unsynced.length} unsynced product catalogue updates.');
     }
 
-    // 2. Pull cloud changes to override local database catalog
+    // 2. Pull cloud changes to override local database catalog ONLY IF cloud version is newer
     final List<dynamic> cloudProducts = await client
         .from('products')
         .select();
@@ -129,25 +137,31 @@ class SyncEngine {
         final name = item['name'] as String;
         final priceCents = item['price_cents'] as int;
         final isDeleted = (item['is_deleted'] as bool) ? 1 : 0;
-        final createdAt = item['created_at'] as String;
-        final updatedAt = item['updated_at'] as String;
+        final createdAt = item['created_at'] as String? ?? DateTime.now().toIso8601String();
+        final version = item['version'] as int? ?? 1;
 
-        await txn.insert(
-          'products',
-          {
-            'id': id,
-            'name': name,
-            'price_cents': priceCents,
-            'is_deleted': isDeleted,
-            'created_at': createdAt,
-            'updated_at': updatedAt,
-            'is_synced': 1,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        // Check local version
+        final localRes = await txn.query('products', columns: ['version'], where: 'id = ?', whereArgs: [id]);
+        final localVersion = localRes.isNotEmpty ? (localRes.first['version'] as int) : 0;
+
+        if (version > localVersion) {
+          await txn.insert(
+            'products',
+            {
+              'id': id,
+              'name': name,
+              'price_cents': priceCents,
+              'is_deleted': isDeleted,
+              'created_at': createdAt,
+              'version': version,
+              'is_synced': 1,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
     });
-    debugPrint('SyncEngine: Pulled and overrode ${cloudProducts.length} products from cloud.');
+    debugPrint('SyncEngine: Pulled ${cloudProducts.length} products from cloud and applied updates.');
   }
 
   // Push local transactions up to Supabase. Transactions are append-only.

@@ -36,7 +36,8 @@ class SyncNotifier extends Notifier<SyncState> {
 
   Future<void> sync() async {
     if (!SupabaseService.instance.isInitialized) {
-      state = state.copyWith(errorMessage: 'Supabase credentials are not configured. Run app in offline-first mode.');
+      final error = SupabaseService.instance.initError ?? 'Supabase credentials are not configured.';
+      state = state.copyWith(errorMessage: 'Connection Failed: $error');
       return;
     }
     

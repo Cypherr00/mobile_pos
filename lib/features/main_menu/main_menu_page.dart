@@ -21,6 +21,28 @@ class MainMenuPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final syncState = ref.watch(syncProvider);
+
+    ref.listen<SyncState>(syncProvider, (previous, next) {
+      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync Error: ${next.errorMessage}'),
+            backgroundColor: AppColors.danger,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      if (previous?.isSyncing == true && next.isSyncing == false && next.errorMessage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sync completed successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    });
+
     final String cashierName = authState.activeCashier?.name ?? 'Cashier Station';
     final String cashierRole = authState.activeCashier?.role ?? 'cashier';
 
